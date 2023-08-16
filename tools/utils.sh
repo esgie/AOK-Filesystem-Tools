@@ -271,8 +271,10 @@ copy_local_bins() {
     if [ -z "$(find "$_clb_src_dir" -type d -empty)" ]; then
         msg_3 "Add $_clb_base_dir AOK-FS stuff to /usr/local/bin"
         mkdir -p /usr/local/bin
-        cp "$_clb_src_dir"/* /usr/local/bin
-        chmod +x /usr/local/bin/*
+        rsync_min_output "$_clb_src_dir/*" /usr/local/bin
+        # cp "$_clb_src_dir"/* /usr/local/bin
+        # chmod +x /usr/local/bin/*
+        #error_msg "copy_local_bins(), verify rsync_min_output [$_clb_src_dir]"
     fi
 
     _clb_src_dir="${aok_content}/${_clb_base_dir}/usr_local_sbin"
@@ -280,12 +282,63 @@ copy_local_bins() {
     if [ -d "$_clb_src_dir" ]; then
         msg_3 "Add $_clb_base_dir AOK-FS stuff to /usr/local/sbin"
         mkdir -p /usr/local/sbin
-        cp "$_clb_src_dir"/* /usr/local/sbin
-        chmod +x /usr/local/sbin/*
+        rsync_min_output "$_clb_src_dir"/* /usr/local/bin
+        # cp "$_clb_src_dir"/* /usr/local/sbin
+        # chmod +x /usr/local/sbin/*
+        error_msg "copy_local_bins(), verify rsync_min_output [$_clb_src_dir]"
     fi
     unset _clb_base_dir
     unset _clb_src_dir
     # msg_3 "copy_local_bins() done"
+}
+
+rsync_min_output() {
+    #
+    #  This usage of rsync only lists modified files.
+    #  If dest was allready containing all that was offered with same
+    #  content and access rights. Nothing happens.
+    #  Owner of sending dir is ignored, during the rsync all modified
+    #  files becomes owned by who ran this, ie typically root.
+    #  This is a convenient way of copying from a uesr owned repo, without
+    #  having to repeat the copy, despite different ownerships.
+    #
+    #  Suggestions for param one, eithe point to a specific file, or if
+    #  all files (and potentially subdirs) in a folder should be copied
+    #  end with /* This way you want get endless notifications that the
+    #  dest folders timestamp etc has been changed
+    #
+    #  Both param 1 and 2 must refer to existing folders!
+    #
+    msg_2 "rsync_min_output($1,$2)"
+    _src="$1"
+    _dst_dir="$2"
+    [ -z "$_src" ] && error_msg "rsync_min_output() - No src param provided!"
+    [ -z "$_dst_dir" ] && error_msg "rsync_min_output() - No dst param provided!"
+
+    ! [ -d "$(dirname "$_src")" ] && error_msg "rsync_min_output() src folder absent: $_src"
+    ! [ -d "$_dst_dir" ] && error_msg "rsync_min_output() - dest folder absent: $_dst_dir"
+
+    # echo ">>> rsync -ahP --progress --no-perms --no-owner --no-group $_src $_dst_dir"
+    # echo
+    # echo "}}}} who is doing the install: $(whoami)"
+    # echo
+    # echo "=====  Source: $_src  ====="
+    # ls -la $_src
+    # echo "--------------"
+    # echo
+    # echo "=====  Content before: $_dst_dir  ====="
+    # ls -la $_dst_dir
+    # echo "--------------"
+    # echo
+
+    rsync -ahP --progress --no-perms --no-owner --no-group $_src $_dst_dir | grep -v -e 'to-chk' -e 'sending incremental'
+
+    # echo
+    # echo "=====  Content after: $_dst_dir  ====="
+    # ls -la $_dst_dir
+    # echo "--------------"
+
+    msg_3 "rsync_min_output() - done"
 }
 
 copy_skel_files() {
@@ -293,7 +346,9 @@ copy_skel_files() {
     if [ -z "$_csf_dest" ]; then
         error_msg "copy_skel_files() needs a destination param"
     fi
-    cp -r /etc/skel/. "$_csf_dest"
+    rsync_min_output /etc/skel/. "$_csf_dest"
+    # cp -r /etc/skel/. "$_csf_dest"
+    error_msg "copy_skel_files(), verify rsync_min_output [$_csf_dest]"
     cd "$_csf_dest" || {
         error_msg "Failed to cd into: $_csf_dest"
     }

@@ -142,6 +142,8 @@ if [ -n "$LOG_FILE" ]; then
     debug_sleep "Since log file is defined, will pause before starting" 2
 fi
 
+apk add rsync
+
 deploy_starting
 
 #
